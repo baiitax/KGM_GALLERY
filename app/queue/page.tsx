@@ -1,23 +1,30 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
-  RefreshCw, Cpu, Server, CheckCircle2, AlertTriangle, 
-  Clock, HardDrive, DollarSign, Activity, Play, Zap
+  Activity, 
+  Clock, 
+  CheckCircle2, 
+  AlertCircle, 
+  RefreshCw, 
+  Film, 
+  DollarSign, 
+  Cpu, 
+  Layers, 
+  RotateCcw,
+  X
 } from 'lucide-react';
 
-export default function QueuePage() {
-  const [data, setData] = useState<any>(null);
+export default function GenerationQueuePage() {
+  const [queueData, setQueueData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const fetchQueue = async () => {
+  const loadQueue = async () => {
     try {
       const res = await fetch('/api/queue');
-      const json = await res.json();
-      if (json.success) {
-        setData(json);
-      }
+      const data = await res.json();
+      setQueueData(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -26,155 +33,144 @@ export default function QueuePage() {
   };
 
   useEffect(() => {
-    fetchQueue();
-    const interval = setInterval(() => {
-      if (autoRefresh) fetchQueue();
-    }, 5000);
+    loadQueue();
+    const interval = setInterval(loadQueue, 5000);
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, []);
 
-  const { activeJobs = [], renderJobs = [], stats = {} } = data || {};
+  const handleCancelJob = async (id: string) => {
+    try {
+      await fetch(`/api/generations/${id}`, { method: 'POST' });
+      loadQueue();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#07130E] text-white p-6 md:p-10">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1A3D2F]/60 pb-6">
+    <div className="min-h-screen pb-20">
+      <div className="border-b border-kgm-border/40 bg-kgm-darkest/90 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[#C5A869] text-xs font-semibold tracking-wider uppercase">Infrastructure</span>
-              <span className="text-[#1A3D2F]">•</span>
-              <span className="text-zinc-400 text-xs">Live Worker Queue & Neural Compute</span>
-            </div>
-            <h1 className="text-3xl font-serif text-[#F4EBD9]">Generation & Render Queue</h1>
-            <p className="text-zinc-400 text-sm mt-1">
-              Monitor real-time AI image-to-video jobs, GPU worker cluster, FFmpeg video mastering, and provider compute spend.
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-wide">
+              AI Generation Center & Queue
+            </h1>
+            <p className="text-xs text-gray-400 mt-1">
+              Live status of asynchronous image-to-video jobs, model telemetry, and cost tracking
             </p>
           </div>
+          <button
+            onClick={loadQueue}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-panel text-xs text-kgm-gold hover:border-kgm-gold/50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition ${
-                autoRefresh
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                  : 'bg-[#0B2319] text-zinc-400 border-[#1A3D2F]'
-              }`}
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span>Auto-refresh {autoRefresh ? 'Active (5s)' : 'Paused'}</span>
-            </button>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+        
+        {/* KPI Counter Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl glass-panel border border-kgm-border/40 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-gray-400 uppercase">Active Background Jobs</p>
+              <p className="text-2xl font-bold text-amber-300 mt-0.5">{queueData?.activeCount ?? 0}</p>
+            </div>
+            <Activity className="w-8 h-8 text-amber-400 animate-pulse" />
+          </div>
 
-            <button
-              onClick={fetchQueue}
-              className="p-2 bg-[#0B2319] hover:bg-[#124232] text-zinc-300 hover:text-[#C5A869] border border-[#1A3D2F] rounded-lg text-xs transition"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+          <div className="p-4 rounded-xl glass-panel border border-kgm-border/40 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-gray-400 uppercase">Completed Generations</p>
+              <p className="text-2xl font-bold text-emerald-300 mt-0.5">{queueData?.completedCount ?? 0}</p>
+            </div>
+            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+          </div>
+
+          <div className="p-4 rounded-xl glass-panel border border-kgm-border/40 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-gray-400 uppercase">Failed / Recovered</p>
+              <p className="text-2xl font-bold text-gray-300 mt-0.5">{queueData?.failedCount ?? 0}</p>
+            </div>
+            <AlertCircle className="w-8 h-8 text-gray-400" />
           </div>
         </div>
 
-        {/* Compute Overview Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#0B2319] p-5 rounded-2xl border border-[#1A3D2F]">
-            <div className="flex items-center justify-between text-zinc-400 text-xs mb-2">
-              <span>Total Shot Generations</span>
-              <Cpu className="w-4 h-4 text-[#C5A869]" />
-            </div>
-            <div className="text-2xl font-serif font-bold text-white">{stats.totalGenerations || 10}</div>
-            <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>{stats.completedGenerations || 10} completed (100%)</span>
-            </div>
+        {/* Jobs Table */}
+        <div className="rounded-2xl glass-panel border border-kgm-border/40 overflow-hidden">
+          <div className="p-4 border-b border-kgm-border/40 bg-kgm-darkest/80 flex items-center justify-between">
+            <h3 className="font-serif text-sm font-bold text-white uppercase tracking-wider">
+              Recent Generation Jobs ({queueData?.queueJobs?.length || 0})
+            </h3>
+            <span className="text-xs text-kgm-goldMuted font-mono">Real-Time Polling: Active (5s)</span>
           </div>
 
-          <div className="bg-[#0B2319] p-5 rounded-2xl border border-[#1A3D2F]">
-            <div className="flex items-center justify-between text-zinc-400 text-xs mb-2">
-              <span>Master Render Jobs</span>
-              <Server className="w-4 h-4 text-[#C5A869]" />
+          {loading ? (
+            <div className="p-12 text-center text-xs text-gray-400">Loading generation jobs...</div>
+          ) : queueData?.queueJobs?.length === 0 ? (
+            <div className="p-12 text-center text-xs text-gray-400">No generation jobs found in queue.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-kgm-emerald/30 border-b border-kgm-border/30 text-gray-400 font-medium uppercase text-[10px]">
+                  <tr>
+                    <th className="p-3">Job ID</th>
+                    <th className="p-3">Project & Shot</th>
+                    <th className="p-3">Provider & Model</th>
+                    <th className="p-3">Duration</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Cost</th>
+                    <th className="p-3">Time</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-kgm-border/20">
+                  {queueData.queueJobs.map((job: any) => (
+                    <tr key={job.id} className="hover:bg-kgm-emerald/10 transition-colors">
+                      <td className="p-3 font-mono text-kgm-goldLight text-[11px]">{job.id.substring(0, 14)}...</td>
+                      <td className="p-3">
+                        <p className="font-semibold text-white">{job.project_title || 'Property Film'}</p>
+                        <span className="text-[10px] text-gray-400">Shot #{job.shot_number} ({job.category})</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded bg-black/40 text-kgm-gold text-[10px] font-mono">
+                          {job.provider} / {job.model}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-white">{job.duration || 10}s</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                          job.status === 'completed'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : job.status === 'processing'
+                            ? 'bg-amber-500/20 text-amber-300 animate-pulse'
+                            : 'bg-red-500/20 text-red-300'
+                        }`}>
+                          {job.status}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-kgm-goldLight">${(job.actual_cost || job.cost_estimate || 0.10).toFixed(2)}</td>
+                      <td className="p-3 text-gray-400 text-[11px]">
+                        {new Date(job.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </td>
+                      <td className="p-3 text-right">
+                        <Link
+                          href={`/studio/${job.project_id}`}
+                          className="px-2.5 py-1 rounded bg-kgm-emerald text-kgm-goldLight text-[11px] font-medium hover:bg-kgm-emeraldLight"
+                        >
+                          Open Shot
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="text-2xl font-serif font-bold text-white">{stats.totalRenders || 1}</div>
-            <div className="text-[11px] text-[#C5A869] mt-1 font-mono">1080p 30FPS ACES</div>
-          </div>
-
-          <div className="bg-[#0B2319] p-5 rounded-2xl border border-[#1A3D2F]">
-            <div className="flex items-center justify-between text-zinc-400 text-xs mb-2">
-              <span>Neural Compute Tokens</span>
-              <Zap className="w-4 h-4 text-[#C5A869]" />
-            </div>
-            <div className="text-2xl font-serif font-bold text-white">{(stats.totalTokens || 1200).toLocaleString()}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Multi-model allocation</div>
-          </div>
-
-          <div className="bg-[#0B2319] p-5 rounded-2xl border border-[#1A3D2F]">
-            <div className="flex items-center justify-between text-zinc-400 text-xs mb-2">
-              <span>Total Compute Cost</span>
-              <DollarSign className="w-4 h-4 text-[#C5A869]" />
-            </div>
-            <div className="text-2xl font-serif font-bold text-white">
-              ${(stats.totalCostUsd || 0.05).toFixed(3)}
-            </div>
-            <div className="text-[11px] text-emerald-400 mt-1">High compute efficiency</div>
-          </div>
+          )}
         </div>
 
-        {/* Active Shot Generations Queue */}
-        <div className="bg-[#0B2319] rounded-2xl border border-[#1A3D2F] overflow-hidden">
-          <div className="p-5 border-b border-[#1A3D2F]/60 flex items-center justify-between">
-            <h3 className="font-serif text-lg text-[#F4EBD9]">Shot Generation Queue</h3>
-            <span className="text-xs text-zinc-400 font-mono">{activeJobs.length} Jobs Processed</span>
-          </div>
-
-          <div className="divide-y divide-[#1A3D2F]/40">
-            {activeJobs.map((job: any) => (
-              <div key={job.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#071710]/50 transition">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#071710] border border-[#1A3D2F] overflow-hidden shrink-0">
-                    <img src={job.source_image || '/sample-photos/villa_facade_dusk.jpg'} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white">{job.shot_name || 'Cinematic Shot'}</h4>
-                    <p className="text-[11px] text-zinc-400">{job.project_title} • {job.provider} ({job.model_name})</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 text-xs text-zinc-300">
-                  <div className="text-right">
-                    <div className="text-[11px] font-mono text-[#C5A869]">{job.duration_seconds || 10}s • {job.resolution || '1080p'}</div>
-                    <div className="text-[10px] text-zinc-400 font-mono">${(job.cost_usd || 0.005).toFixed(3)} USD</div>
-                  </div>
-
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    <CheckCircle2 className="w-3 h-3" />
-                    {job.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Master Render Pipeline Jobs */}
-        <div className="bg-[#0B2319] rounded-2xl border border-[#1A3D2F] overflow-hidden">
-          <div className="p-5 border-b border-[#1A3D2F]/60">
-            <h3 className="font-serif text-lg text-[#F4EBD9]">FFmpeg Assembly & Mastering Runs</h3>
-          </div>
-
-          <div className="p-4 divide-y divide-[#1A3D2F]/40">
-            {renderJobs.map((r: any) => (
-              <div key={r.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-semibold text-white">{r.project_title} Master Package</h4>
-                  <p className="text-[10px] text-zinc-400 font-mono">Job ID: {r.id} • Resolution: {r.resolution}</p>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  {r.status} (100%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

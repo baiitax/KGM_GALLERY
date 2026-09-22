@@ -1,103 +1,439 @@
-export interface ImageAnalysisResult {
-  category: 'exterior' | 'entrance' | 'living_room' | 'dining' | 'kitchen' | 'master_bedroom' | 'bathroom' | 'balcony' | 'pool' | 'aerial';
-  confidence: number;
-  depth_score: number;
-  symmetry_score: number;
-  lighting_quality: 'dusk_golden_hour' | 'natural_diffused' | 'bright_daylight' | 'moody_ambient';
-  recommended_motion_preset: string;
-  recommended_lens: string;
-  recommended_speed: 'ultra_slow' | 'slow' | 'medium';
-  generation_risk: 'low' | 'medium' | 'high';
-  detected_features: string[];
-  composition_critique: string;
+import { RoomCategory, ImageAnalysisData } from '../types';
+
+interface AnalyzeImageInput {
+  filename: string;
+  categoryHint?: string;
+  width?: number;
+  height?: number;
+  fileSize?: number;
 }
 
+const CATEGORY_KEYWORDS: Record<RoomCategory, string[]> = {
+  exterior: ['exterior', 'facade', 'front', 'elevation', 'outside', 'architecture', 'building', 'villa', 'mansion', 'dusk', 'twilight'],
+  entrance: ['entrance', 'foyer', 'vestibule', 'door', 'hallway', 'entry', 'lobby', 'reception', 'gate'],
+  living_room: ['living', 'salon', 'lounge', 'sitting', 'majlis', 'family', 'sofa', 'reception_salon'],
+  dining_room: ['dining', 'table', 'banquet', 'chairs', 'chandelier', 'dinner'],
+  kitchen: ['kitchen', 'island', 'cabinet', 'appliances', 'stove', 'quartzite', 'marble_island'],
+  bedroom: ['bedroom', 'bed', 'guest_room', 'sleeping', 'nightstand'],
+  master_bedroom: ['master_bedroom', 'master_suite', 'primary_bedroom', 'primary_suite', 'penthouse_suite'],
+  bathroom: ['bathroom', 'bath', 'ensuite', 'powder_room', 'shower', 'tub', 'spa', 'vanity', 'soaking_tub'],
+  office: ['office', 'study', 'library', 'desk', 'workspace'],
+  balcony: ['balcony', 'loggia', 'veranda'],
+  terrace: ['terrace', 'rooftop', 'patio', 'deck', 'pergola'],
+  garden: ['garden', 'courtyard', 'landscape', 'lawn', 'trees', 'palms', 'plants'],
+  pool: ['pool', 'swimming', 'infinity_pool', 'jacuzzi', 'sun_deck', 'water'],
+  hallway: ['hallway', 'corridor', 'gallery', 'walkway'],
+  staircase: ['staircase', 'stairs', 'floating_stairs', 'spiral'],
+  garage: ['garage', 'carport', 'driveway', 'parking'],
+  view: ['view', 'skyline', 'panorama', 'horizon', 'sea_view', 'city_view'],
+  land: ['land', 'plot', 'parcel', 'estate_grounds'],
+  aerial: ['aerial', 'drone', 'overhead', 'bird_eye', 'top_view'],
+  other: ['detail', 'feature', 'interior', 'room'],
+};
+
 export class ImageAnalysisService {
-  static analyzeImage(params: { filename: string; categoryHint?: string }): ImageAnalysisResult {
-    const fn = (params.filename || '').toLowerCase();
-    const hint = (params.categoryHint || '').toLowerCase();
+  public static analyzeImage(input: AnalyzeImageInput): ImageAnalysisData {
+    const fn = (input.filename || '').toLowerCase();
+    const hint = (input.categoryHint || '').toLowerCase();
 
-    let category: ImageAnalysisResult['category'] = 'living_room';
-    let lens = '28mm';
-    let preset = 'living_room';
-    let lighting: ImageAnalysisResult['lighting_quality'] = 'natural_diffused';
-    let features: string[] = ['Open concept luxury layout', 'High architectural ceilings'];
-    let critique = 'Clean spatial proportions with distinct vanishing lines.';
-    let depthScore = 0.88;
-    let symmetryScore = 0.82;
-    const risk: 'low' | 'medium' | 'high' = 'low';
+    // 1. Determine Room Category
+    let detectedCategory: RoomCategory = 'living_room';
+    let maxScore = 0;
 
-    if (fn.includes('exterior') || fn.includes('facade') || hint.includes('exterior') || hint.includes('facade')) {
-      category = 'exterior';
-      lens = '24mm';
-      preset = 'hero_exterior';
-      lighting = 'dusk_golden_hour';
-      features = ['Modern travertine stone facade', 'Integrated LED accent lighting', 'Expansive manicured landscaping'];
-      critique = 'Striking architectural volume with balanced vanishing lines against twilight sky.';
-      depthScore = 0.96;
-      symmetryScore = 0.89;
-    } else if (fn.includes('foyer') || fn.includes('entrance') || hint.includes('entrance')) {
-      category = 'entrance';
-      lens = '24mm';
-      preset = 'entrance_foyer';
-      lighting = 'natural_diffused';
-      features = ['Grand double-height pivot door', 'Book-matched Italian marble flooring', 'Sculptural brass chandelier'];
-      critique = 'Exceptional verticality; recommended gentle upward tilt to emphasize ceiling scale.';
-      depthScore = 0.91;
-    } else if (fn.includes('kitchen') || fn.includes('counter') || hint.includes('kitchen')) {
-      category = 'kitchen';
-      lens = '35mm';
-      preset = 'kitchen_dolly';
-      lighting = 'natural_diffused';
-      features = ['Monolithic Calacatta marble island', 'Gaggenau integrated appliances', 'Custom bronze cabinet hardware'];
-      critique = 'Crisp planar alignment; shallow depth of field recommended for texture richness.';
-      depthScore = 0.84;
-    } else if (fn.includes('bedroom') || fn.includes('master') || hint.includes('bedroom')) {
-      category = 'master_bedroom';
-      lens = '35mm';
-      preset = 'bedroom_push';
-      lighting = 'moody_ambient';
-      features = ['Panoramic floor-to-ceiling glass', 'Custom textured wood headboard wall', 'Linen upholstered seating'];
-      critique = 'Serene spatial flow with warm morning illumination.';
-      depthScore = 0.86;
-    } else if (fn.includes('bath') || hint.includes('bath')) {
-      category = 'bathroom';
-      lens = '35mm';
-      preset = 'bathroom_pan';
-      lighting = 'natural_diffused';
-      features = ['Freestanding soaking stone tub', 'Frameless rainfall shower enclosure', 'Floating timber vanity'];
-      critique = 'Intimate spa ambiance; slow drift highlights surface reflectivity.';
-      depthScore = 0.80;
-    } else if (fn.includes('pool') || fn.includes('terrace') || hint.includes('pool') || hint.includes('terrace')) {
-      category = 'pool';
-      lens = '24mm';
-      preset = 'pool_reveal';
-      lighting = 'dusk_golden_hour';
-      features = ['Infinity water edge', 'Sunken lounge with linear fire pit', 'Submerged ambient pool illumination'];
-      critique = 'High visual contrast between glowing water and twilight perimeter.';
-      depthScore = 0.95;
-    } else if (fn.includes('dining') || hint.includes('dining')) {
-      category = 'dining';
-      lens = '35mm';
-      preset = 'dining_sweep';
-      lighting = 'moody_ambient';
-      features = ['Smoked oak 12-seat dining table', 'Bespoke cascading crystal fixture', 'Temp-controlled wine gallery'];
-      critique = 'Balanced axial composition centered on chandelier glow.';
-      depthScore = 0.85;
+    for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS) as [RoomCategory, string[]][]) {
+      let score = 0;
+      if (hint === cat) score += 10;
+      for (const kw of keywords) {
+        if (fn.includes(kw)) score += 3;
+        if (hint.includes(kw)) score += 4;
+      }
+      if (score > maxScore) {
+        maxScore = score;
+        detectedCategory = cat;
+      }
     }
 
+    if (maxScore === 0) {
+      if (fn.includes('01') || fn.includes('facade') || fn.includes('front')) detectedCategory = 'exterior';
+      else if (fn.includes('02') || fn.includes('entry')) detectedCategory = 'entrance';
+      else if (fn.includes('03') || fn.includes('salon')) detectedCategory = 'living_room';
+      else if (fn.includes('04') || fn.includes('dining')) detectedCategory = 'dining_room';
+      else if (fn.includes('05') || fn.includes('kitchen')) detectedCategory = 'kitchen';
+      else if (fn.includes('06') || fn.includes('bed')) detectedCategory = 'master_bedroom';
+      else if (fn.includes('07') || fn.includes('bath')) detectedCategory = 'bathroom';
+      else if (fn.includes('08') || fn.includes('pool')) detectedCategory = 'pool';
+      else if (fn.includes('09') || fn.includes('garden')) detectedCategory = 'garden';
+      else if (fn.includes('10') || fn.includes('twilight')) detectedCategory = 'exterior';
+    }
+
+    // 2. Derive Architectural Depth & Features
+    const categoryProfiles: Record<RoomCategory, Partial<ImageAnalysisData>> = {
+      exterior: {
+        dominant_feature: 'Grand Architectural Facade & Front Colonnade',
+        camera_direction: 'forward',
+        foreground: 'Paved stone driveway & landscaped palms',
+        midground: 'Double-height facade portico & glass fenestration',
+        background: 'Twilight sky & surrounding prestigious grounds',
+        depth_score: 0.94,
+        lighting_condition: 'golden_hour',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'hero_exterior',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      entrance: {
+        dominant_feature: 'Double-Height Foyer & Custom Chandelier',
+        camera_direction: 'forward',
+        foreground: 'Polished bookmatched marble vestibule',
+        midground: 'Grand pivoting bronze door & chandelier',
+        background: 'Inner reception salon portal',
+        depth_score: 0.88,
+        lighting_condition: 'interior_warm',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'high',
+        fragile_objects: 'few',
+        generation_risk: 'low',
+        recommended_motion: 'entrance',
+        recommended_lens: '28mm',
+        suggested_duration: 10,
+      },
+      living_room: {
+        dominant_feature: 'Expansive Formal Reception & Floor-to-Ceiling Windows',
+        camera_direction: 'left_to_right',
+        foreground: 'Bespoke marble coffee table & designer rug',
+        midground: 'Minotti lounge seating ensemble',
+        background: 'Motorized glazing overlooking private garden',
+        depth_score: 0.90,
+        lighting_condition: 'natural_daylight',
+        perspective: 'eye_level',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'few',
+        generation_risk: 'low',
+        recommended_motion: 'living_room',
+        recommended_lens: '28mm',
+        suggested_duration: 10,
+      },
+      dining_room: {
+        dominant_feature: '14-Seat Formal Banquet Suite & Crystal Feature',
+        camera_direction: 'orbit_subtle',
+        foreground: 'Bespoke dining table settings & centerpiece',
+        midground: 'Upholstered dining chairs & smoked oak table',
+        background: 'Backlit wine display & contemporary art',
+        depth_score: 0.86,
+        lighting_condition: 'interior_warm',
+        perspective: 'eye_level',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'few',
+        generation_risk: 'low',
+        recommended_motion: 'dining',
+        recommended_lens: '35mm',
+        suggested_duration: 10,
+      },
+      kitchen: {
+        dominant_feature: 'Quartzite Waterfall Island & Custom Matte Cabinetry',
+        camera_direction: 'left_to_right',
+        foreground: 'Honed waterfall stone countertop & brass stools',
+        midground: 'Gaggenau induction suite & integrated refrigeration',
+        background: 'Full-height fluted cabinetry & prep scullery door',
+        depth_score: 0.84,
+        lighting_condition: 'interior_architectural',
+        perspective: 'eye_level',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'high',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'kitchen',
+        recommended_lens: '35mm',
+        suggested_duration: 10,
+      },
+      bedroom: {
+        dominant_feature: 'Upholstered King Bed & Ambient Lighting Sconces',
+        camera_direction: 'forward',
+        foreground: 'Plush wool area rug',
+        midground: 'Bespoke king bed & fluted acoustic wood paneling',
+        background: 'Large picture window with sheer linen drapes',
+        depth_score: 0.82,
+        lighting_condition: 'interior_warm',
+        perspective: 'eye_level',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'low',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'bedroom',
+        recommended_lens: '32mm',
+        suggested_duration: 10,
+      },
+      master_bedroom: {
+        dominant_feature: 'Primary Master Suite & Private Sunset Balcony',
+        camera_direction: 'left_to_right',
+        foreground: 'Designer lounge chaise & custom side table',
+        midground: 'Silk velvet upholstered bed & floating nightstands',
+        background: 'Floor-to-ceiling glass sliding doors to balcony',
+        depth_score: 0.91,
+        lighting_condition: 'golden_hour',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'low',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'master_suite',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      bathroom: {
+        dominant_feature: 'Freestanding Stone Soaking Tub & Dual Rain Showers',
+        camera_direction: 'left_to_right',
+        foreground: 'Bookmatched marble floor tiles',
+        midground: 'Monolithic oval tub & brushed gold Dornbracht tapware',
+        background: 'Fluted glass wet room & LED backlit mirror',
+        depth_score: 0.80,
+        lighting_condition: 'interior_architectural',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'high',
+        fragile_objects: 'few',
+        generation_risk: 'medium',
+        recommended_motion: 'bathroom',
+        recommended_lens: '28mm',
+        suggested_duration: 10,
+      },
+      pool: {
+        dominant_feature: '25-Meter Heated Infinity Pool & Sunken Fire Lounge',
+        camera_direction: 'left_to_right',
+        foreground: 'Travertine pool coping & submerged sun shelves',
+        midground: 'Crystalline turquoise water & teak loungers',
+        background: 'Villa rear architectural elevation & palms',
+        depth_score: 0.95,
+        lighting_condition: 'golden_hour',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'high',
+        fragile_objects: 'none',
+        generation_risk: 'medium',
+        recommended_motion: 'pool',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      garden: {
+        dominant_feature: 'Manicured Mediterranean Courtyard & Water Wall',
+        camera_direction: 'left_to_right',
+        foreground: 'Sculptured boxwood hedges & stone pavers',
+        midground: 'Ancient olive tree & illuminated water feature',
+        background: 'Limestone boundary wall & perimeter greenery',
+        depth_score: 0.89,
+        lighting_condition: 'natural_daylight',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'medium',
+        reflective_surfaces: 'low',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'garden',
+        recommended_lens: '28mm',
+        suggested_duration: 10,
+      },
+      balcony: {
+        dominant_feature: 'Glass Balustrade & Panoramic Horizon View',
+        camera_direction: 'forward',
+        foreground: 'Outdoor lounge chairs',
+        midground: 'Frameless safety glass railing',
+        background: 'Unobstructed scenic skyline panorama',
+        depth_score: 0.93,
+        lighting_condition: 'golden_hour',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'medium',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'balcony',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      terrace: {
+        dominant_feature: 'Rooftop Lounge Pavilion & Dining Pergola',
+        camera_direction: 'left_to_right',
+        foreground: 'Outdoor sectional sofa with custom linen cushions',
+        midground: 'Motorized louvered pergola & fire pit',
+        background: 'Evening twilight sky & city lights',
+        depth_score: 0.92,
+        lighting_condition: 'twilight',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'medium',
+        reflective_surfaces: 'low',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'terrace',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      view: {
+        dominant_feature: 'Floor-to-Ceiling Panoramic Glass Window Wall',
+        camera_direction: 'forward',
+        foreground: 'Interior window sill and drapery frame',
+        midground: 'Ultra-clear structural glazing',
+        background: 'Sweeping metropolitan skyline & sunset',
+        depth_score: 0.96,
+        lighting_condition: 'golden_hour',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'view',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      aerial: {
+        dominant_feature: 'Full Estate Footprint & Prestigious Neighborhood',
+        camera_direction: 'pan_up',
+        foreground: 'Property rooftop geometry & private grounds',
+        midground: 'Pool, tennis pavilion, and landscaped gardens',
+        background: 'Surrounding prestigious residential district',
+        depth_score: 0.98,
+        lighting_condition: 'natural_daylight',
+        perspective: 'aerial',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'low',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'aerial',
+        recommended_lens: '20mm',
+        suggested_duration: 10,
+      },
+      office: {
+        dominant_feature: 'Executive Desk & Backlit Wall Library',
+        camera_direction: 'forward',
+        foreground: 'Leather executive desk & brass lamp',
+        midground: 'Ergonomic armchair & wall paneling',
+        background: 'Built-in library shelving with accent illumination',
+        depth_score: 0.83,
+        lighting_condition: 'interior_warm',
+        perspective: 'eye_level',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'low',
+        fragile_objects: 'few',
+        generation_risk: 'low',
+        recommended_motion: 'bedroom',
+        recommended_lens: '32mm',
+        suggested_duration: 10,
+      },
+      hallway: {
+        dominant_feature: 'Gallery Corridor & Recessed Architectural Niches',
+        camera_direction: 'forward',
+        foreground: 'Polished floor runners',
+        midground: 'Art display niches with focused spotlights',
+        background: 'Framed archway portal to reception',
+        depth_score: 0.87,
+        lighting_condition: 'interior_architectural',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'entrance',
+        recommended_lens: '28mm',
+        suggested_duration: 10,
+      },
+      staircase: {
+        dominant_feature: 'Cantilevered Floating Marble Staircase',
+        camera_direction: 'pan_up',
+        foreground: 'First step marble plinth',
+        midground: 'Frameless glass balustrade & LED step treads',
+        background: 'Double-height textured stone accent wall',
+        depth_score: 0.89,
+        lighting_condition: 'interior_architectural',
+        perspective: 'low_angle',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'medium',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'entrance',
+        recommended_lens: '28mm',
+        suggested_duration: 10,
+      },
+      garage: {
+        dominant_feature: 'Showroom 4-Car Climate-Controlled Pavilion',
+        camera_direction: 'left_to_right',
+        foreground: 'Epoxy resin showroom flooring',
+        midground: 'Automotive showcase bays & architectural LED strips',
+        background: 'Custom storage cabinetry & glass access wall',
+        depth_score: 0.85,
+        lighting_condition: 'interior_architectural',
+        perspective: 'wide_angle',
+        architectural_sensitivity: 'medium',
+        reflective_surfaces: 'high',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'living_room',
+        recommended_lens: '24mm',
+        suggested_duration: 10,
+      },
+      land: {
+        dominant_feature: 'Expansive Prime Parcel & Property Boundary Lines',
+        camera_direction: 'forward',
+        foreground: 'Natural terrain & boundary marker',
+        midground: 'Flat building envelope & access roads',
+        background: 'Surrounding scenic landscape & horizon',
+        depth_score: 0.95,
+        lighting_condition: 'natural_daylight',
+        perspective: 'elevated',
+        architectural_sensitivity: 'low',
+        reflective_surfaces: 'none',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'aerial',
+        recommended_lens: '21mm',
+        suggested_duration: 10,
+      },
+      other: {
+        dominant_feature: 'Bespoke Architectural Detail',
+        camera_direction: 'forward',
+        foreground: 'Material texture plinth',
+        midground: 'Architectural craftsmanship detail',
+        background: 'Ambient spatial context',
+        depth_score: 0.80,
+        lighting_condition: 'interior_warm',
+        perspective: 'eye_level',
+        architectural_sensitivity: 'high',
+        reflective_surfaces: 'low',
+        fragile_objects: 'none',
+        generation_risk: 'low',
+        recommended_motion: 'hero_exterior',
+        recommended_lens: '35mm',
+        suggested_duration: 10,
+      },
+    };
+
+    const profile = categoryProfiles[detectedCategory] || categoryProfiles.living_room;
+
     return {
-      category,
-      confidence: 0.94,
-      depth_score: depthScore,
-      symmetry_score: symmetryScore,
-      lighting_quality: lighting,
-      recommended_motion_preset: preset,
-      recommended_lens: lens,
-      recommended_speed: 'slow',
-      generation_risk: risk,
-      detected_features: features,
-      composition_critique: critique,
+      category: detectedCategory,
+      confidence: 0.96,
+      dominant_feature: profile.dominant_feature || 'Luxury Architectural Space',
+      camera_direction: (profile.camera_direction as any) || 'forward',
+      foreground: profile.foreground || 'Foreground architectural element',
+      midground: profile.midground || 'Midground interior layout',
+      background: profile.background || 'Background architectural vista',
+      depth_score: profile.depth_score || 0.85,
+      lighting_condition: profile.lighting_condition || 'natural_daylight',
+      visual_quality: 'pristine',
+      orientation: input.width && input.height && input.height > input.width ? 'portrait' : 'landscape',
+      perspective: profile.perspective || 'wide_angle',
+      architectural_sensitivity: profile.architectural_sensitivity || 'high',
+      reflective_surfaces: profile.reflective_surfaces || 'low',
+      fragile_objects: profile.fragile_objects || 'none',
+      has_text: false,
+      has_faces: false,
+      generation_risk: profile.generation_risk || 'low',
+      recommended_motion: profile.recommended_motion || 'living_room',
+      recommended_lens: profile.recommended_lens || '28mm',
+      suggested_duration: profile.suggested_duration || 10,
     };
   }
 }

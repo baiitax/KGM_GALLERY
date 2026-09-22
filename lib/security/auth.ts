@@ -1,98 +1,113 @@
-export type UserRole =
-  | 'super_admin'
-  | 'agency_admin'
-  | 'creative_director'
-  | 'producer'
-  | 'editor'
-  | 'viewer';
+import { User, UserRole } from '../types';
+import { getDb } from '../db/database';
 
-export interface UserPermissions {
+export const ROLE_PERMISSIONS: Record<UserRole, {
+  canManageSystem: boolean;
+  canManageProviders: boolean;
+  canEditMotionPresets: boolean;
   canCreateProjects: boolean;
-  canEditProjects: boolean;
-  canDeleteProjects: boolean;
   canGenerateAI: boolean;
   canApproveShots: boolean;
+  canRenderFilms: boolean;
   canExportFilms: boolean;
-  canManageProviders: boolean;
-  canManageSystem: boolean;
-  canViewBilling: boolean;
-}
-
-export const ROLE_PERMISSIONS: Record<UserRole, UserPermissions> = {
+  canManageUsers: boolean;
+}> = {
   super_admin: {
-    canCreateProjects: true,
-    canEditProjects: true,
-    canDeleteProjects: true,
-    canGenerateAI: true,
-    canApproveShots: true,
-    canExportFilms: true,
-    canManageProviders: true,
     canManageSystem: true,
-    canViewBilling: true,
-  },
-  agency_admin: {
+    canManageProviders: true,
+    canEditMotionPresets: true,
     canCreateProjects: true,
-    canEditProjects: true,
-    canDeleteProjects: true,
     canGenerateAI: true,
     canApproveShots: true,
+    canRenderFilms: true,
     canExportFilms: true,
-    canManageProviders: true,
+    canManageUsers: true,
+  },
+  admin: {
     canManageSystem: false,
-    canViewBilling: true,
+    canManageProviders: true,
+    canEditMotionPresets: true,
+    canCreateProjects: true,
+    canGenerateAI: true,
+    canApproveShots: true,
+    canRenderFilms: true,
+    canExportFilms: true,
+    canManageUsers: true,
   },
   creative_director: {
+    canManageSystem: false,
+    canManageProviders: false,
+    canEditMotionPresets: true,
     canCreateProjects: true,
-    canEditProjects: true,
-    canDeleteProjects: false,
     canGenerateAI: true,
     canApproveShots: true,
+    canRenderFilms: true,
     canExportFilms: true,
-    canManageProviders: false,
-    canManageSystem: false,
-    canViewBilling: false,
+    canManageUsers: false,
   },
-  producer: {
+  property_manager: {
+    canManageSystem: false,
+    canManageProviders: false,
+    canEditMotionPresets: false,
     canCreateProjects: true,
-    canEditProjects: true,
-    canDeleteProjects: false,
-    canGenerateAI: true,
-    canApproveShots: true,
-    canExportFilms: true,
-    canManageProviders: false,
-    canManageSystem: false,
-    canViewBilling: false,
-  },
-  editor: {
-    canCreateProjects: false,
-    canEditProjects: true,
-    canDeleteProjects: false,
     canGenerateAI: true,
     canApproveShots: false,
+    canRenderFilms: true,
     canExportFilms: true,
-    canManageProviders: false,
+    canManageUsers: false,
+  },
+  agent: {
     canManageSystem: false,
-    canViewBilling: false,
+    canManageProviders: false,
+    canEditMotionPresets: false,
+    canCreateProjects: true,
+    canGenerateAI: true,
+    canApproveShots: false,
+    canRenderFilms: true,
+    canExportFilms: true,
+    canManageUsers: false,
   },
   viewer: {
+    canManageSystem: false,
+    canManageProviders: false,
+    canEditMotionPresets: false,
     canCreateProjects: false,
-    canEditProjects: false,
-    canDeleteProjects: false,
     canGenerateAI: false,
     canApproveShots: false,
+    canRenderFilms: false,
     canExportFilms: true,
-    canManageProviders: false,
-    canManageSystem: false,
-    canViewBilling: false,
+    canManageUsers: false,
   },
 };
 
 export class AuthService {
-  static getPermissions(role: UserRole): UserPermissions {
-    return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.viewer;
+  public static getCurrentUser(userId?: string): User {
+    const db = getDb();
+    if (userId) {
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined;
+      if (user) return user;
+    }
+    // Default fallback to Super Admin
+    const defaultUser = db.prepare('SELECT * FROM users WHERE role = ? LIMIT 1').get('super_admin') as User | undefined;
+    return (
+      defaultUser || {
+        id: 'usr_super_01',
+        email: 'executive@kgmlimited.com',
+        full_name: 'Engr. Farouk Kurra',
+        role: 'super_admin',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        org_id: 'org_kgm_01',
+        created_at: new Date().toISOString(),
+      }
+    );
   }
 
-  static hasPermission(role: UserRole, permission: keyof UserPermissions): boolean {
-    return Boolean(ROLE_PERMISSIONS[role]?.[permission]);
+  public static listAllUsers(): User[] {
+    const db = getDb();
+    return db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[];
+  }
+
+  public static hasPermission(role: UserRole, permission: keyof (typeof ROLE_PERMISSIONS)['super_admin']): boolean {
+    return ROLE_PERMISSIONS[role]?.[permission] ?? false;
   }
 }

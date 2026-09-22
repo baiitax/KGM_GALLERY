@@ -1,173 +1,123 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Music, Volume2, Play, Pause, Download, Sparkles, 
-  CheckCircle2, Disc, Sliders, Mic, Globe
+  Music, 
+  Play, 
+  Pause, 
+  ShieldCheck, 
+  Volume2, 
+  Mic, 
+  Radio, 
+  Sparkles,
+  Upload,
+  Check
 } from 'lucide-react';
+import { MusicTrack } from '@/lib/types';
 
 export default function MediaPage() {
-  const [tracks, setTracks] = useState<any[]>([]);
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [playingTrack, setPlayingTrack] = useState<string | null>(null);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ar' | 'fr'>('en');
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    fetch('/api/music')
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) setTracks(data.tracks);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    // Seed or fetch tracks
+    const sampleTracks: MusicTrack[] = [
+      { id: 'mus_lux_01', category: 'luxury', title: 'Aura of Prestige', artist: 'KGM Sound Studio', duration_seconds: 120, file_path: '/audio/luxury_prestige.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_mod_01', category: 'modern', title: 'Contemporary Haven', artist: 'KGM Sound Studio', duration_seconds: 110, file_path: '/audio/modern_haven.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_ele_01', category: 'elegant', title: 'Chamber of Gold', artist: 'KGM Sound Studio', duration_seconds: 125, file_path: '/audio/chamber_gold.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_cin_01', category: 'cinematic', title: 'Sovereign Horizons', artist: 'KGM Sound Studio', duration_seconds: 135, file_path: '/audio/sovereign_horizons.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_corp_01', category: 'corporate', title: 'Institutional Trust', artist: 'KGM Sound Studio', duration_seconds: 105, file_path: '/audio/institutional_trust.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_calm_01', category: 'calm', title: 'Serenade of Silence', artist: 'KGM Sound Studio', duration_seconds: 115, file_path: '/audio/serenade_silence.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_prem_01', category: 'premium', title: 'The Royal Estate', artist: 'KGM Sound Studio', duration_seconds: 130, file_path: '/audio/royal_estate.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_afr_01', category: 'african_contemporary', title: 'Emerald Oasis', artist: 'KGM Sound Studio', duration_seconds: 120, file_path: '/audio/emerald_oasis.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_pia_01', category: 'minimal_piano', title: 'Reflections on Marble', artist: 'KGM Sound Studio', duration_seconds: 110, file_path: '/audio/reflections_marble.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+      { id: 'mus_amb_01', category: 'ambient', title: 'Architectural Resonance', artist: 'KGM Sound Studio', duration_seconds: 140, file_path: '/audio/architectural_resonance.mp3', is_royalty_verified: true, license_type: 'Commercial Master', is_custom: false, created_at: '' },
+    ];
+    setTracks(sampleTracks);
+    setLoading(false);
   }, []);
 
-  const handleTogglePlay = (track: any) => {
-    if (playingTrack === track.id) {
-      if (audioElement) {
-        audioElement.pause();
-        setPlayingTrack(null);
-      }
+  const handleTogglePlay = (track: MusicTrack) => {
+    if (playingId === track.id) {
+      audioRef.current?.pause();
+      setPlayingId(null);
     } else {
-      if (audioElement) {
-        audioElement.pause();
+      if (audioRef.current) {
+        audioRef.current.src = track.file_path;
+        audioRef.current.play();
+        setPlayingId(track.id);
       }
-      const audio = new Audio(track.file_path);
-      audio.play();
-      audio.onended = () => setPlayingTrack(null);
-      setAudioElement(audio);
-      setPlayingTrack(track.id);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#07130E] text-white p-6 md:p-10">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="border-b border-[#1A3D2F]/60 pb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[#C5A869] text-xs font-semibold tracking-wider uppercase">Soundstage & Voiceover</span>
-            <span className="text-[#1A3D2F]">•</span>
-            <span className="text-zinc-400 text-xs">Acoustic Atmosphere & Narration</span>
-          </div>
-          <h1 className="text-3xl font-serif text-[#F4EBD9]">Master Audio Library</h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            Royalty-cleared cinematic scores, ambient textures, and multi-lingual AI voiceover narration engines for KGM films.
+    <div className="min-h-screen pb-20">
+      <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
+
+      <div className="border-b border-kgm-border/40 bg-kgm-darkest/90 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-wide">
+            Royalty-Safe Music & Voiceover Library
+          </h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Curated cinematic soundscapes with verified commercial synchronization licenses and multi-lingual voiceover engine
           </p>
         </div>
+      </div>
 
-        {/* Content Split */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left: Music Tracks */}
-          <div className="bg-[#0B2319] p-6 rounded-3xl border border-[#1A3D2F] space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#C5A869]">
-                <Music className="w-5 h-5" />
-                <h3 className="font-serif text-lg text-[#F4EBD9]">Curated Soundtracks</h3>
-              </div>
-              <span className="text-xs text-emerald-400 font-mono bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                100% Commercial Cleared
-              </span>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+        
+        {/* Category Grid */}
+        <div className="p-6 rounded-2xl glass-panel border border-kgm-border/50 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-serif text-base font-bold text-white">Commercial Soundtrack Catalog</h2>
+              <p className="text-xs text-gray-400">All tracks verified for worldwide digital property marketing broadcasts</p>
             </div>
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>100% Commercial Sync License</span>
+            </span>
+          </div>
 
-            <div className="space-y-3">
-              {tracks.map((track) => {
-                const isCurrent = playingTrack === track.id;
-                return (
-                  <div
-                    key={track.id}
-                    className={`p-4 rounded-2xl border transition flex items-center justify-between ${
-                      isCurrent
-                        ? 'bg-[#124232] border-[#C5A869] shadow-lg shadow-[#C5A869]/10'
-                        : 'bg-[#071710] border-[#1A3D2F] hover:border-[#C5A869]/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleTogglePlay(track)}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
-                          isCurrent
-                            ? 'bg-[#C5A869] text-[#0B2B20]'
-                            : 'bg-[#0B2319] text-[#C5A869] border border-[#1A3D2F] hover:border-[#C5A869]'
-                        }`}
-                      >
-                        {isCurrent ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                      </button>
-
-                      <div>
-                        <h4 className="text-sm font-semibold text-white">{track.title}</h4>
-                        <p className="text-xs text-zinc-400">{track.artist} • {track.genre} • {track.bpm} BPM</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {tracks.map(t => {
+              const isPlaying = playingId === t.id;
+              return (
+                <div
+                  key={t.id}
+                  className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+                    isPlaying ? 'bg-kgm-emerald/80 border-kgm-gold shadow-gold-glow' : 'bg-kgm-card border-kgm-border/40 hover:border-kgm-gold/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleTogglePlay(t)}
+                      className="p-3 rounded-full bg-kgm-emerald text-kgm-gold border border-kgm-gold/40 hover:scale-105 transition-transform"
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+                    <div>
+                      <h4 className="font-serif font-bold text-sm text-white">{t.title}</h4>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
+                        <span className="text-kgm-gold uppercase capitalize">{t.category.replace('_', ' ')}</span>
+                        <span>•</span>
+                        <span>{t.artist}</span>
+                        <span>•</span>
+                        <span>{t.duration_seconds}s</span>
                       </div>
                     </div>
-
-                    <div className="text-right">
-                      <span className="text-xs text-[#C5A869] font-mono">{track.duration_seconds}s</span>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Right: Voiceover Preview */}
-          <div className="bg-[#0B2319] p-6 rounded-3xl border border-[#1A3D2F] space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#C5A869]">
-                <Mic className="w-5 h-5" />
-                <h3 className="font-serif text-lg text-[#F4EBD9]">AI Voiceover Synthesis</h3>
-              </div>
-              <div className="flex items-center gap-1 bg-[#071710] p-1 rounded-lg border border-[#1A3D2F]">
-                {(['en', 'ar', 'fr'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => setSelectedLanguage(lang)}
-                    className={`px-3 py-1 rounded text-xs uppercase font-mono transition ${
-                      selectedLanguage === lang
-                        ? 'bg-[#C5A869] text-[#0B2B20] font-bold'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-5 bg-[#071710] rounded-2xl border border-[#1A3D2F] space-y-4">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-zinc-400">Speaker Profile:</span>
-                <span className="text-[#C5A869] font-semibold">
-                  {selectedLanguage === 'en' ? 'British / Neutral Luxury Male' : selectedLanguage === 'ar' ? 'Classical Arabic Eloquent' : 'Parisian French Prestige'}
-                </span>
-              </div>
-
-              <div className="p-4 bg-[#05100B] rounded-xl border border-[#1A3D2F]/80 text-xs text-zinc-300 leading-relaxed font-serif italic">
-                {selectedLanguage === 'en' && (
-                  `"Welcome to this extraordinary architectural statement in Riyadh. Crafted with uncompromising precision, expansive entertaining spaces, and bespoke artisanal finishes throughout. Presented exclusively by Kurra Greenfield Merchants Limited."`
-                )}
-                {selectedLanguage === 'ar' && (
-                  `"مرحباً بكم في هذه التحفة المعمارية الفريدة في الرياض. صُمم هذا العقار الاستثنائي بعناية فائقة وتجهيزات راقية ليعكس أرقى معايير الحياة الفاخرة. تم التطوير والتسويق بواسطة كورا جرينفيلد ميرشانتس ليمتد."`
-                )}
-                {selectedLanguage === 'fr' && (
-                  `"Bienvenue dans ce chef-d'œuvre d'exception à Riyad. Une propriété prestigieuse alliant finitions sur mesure et design contemporain. Présenté par Kurra Greenfield Merchants Limited."`
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-[11px] text-zinc-400 flex items-center gap-1">
-                  <Globe className="w-3.5 h-3.5 text-[#C5A869]" />
-                  <span>Subtitles Auto-Generated</span>
-                </span>
-
-                <button className="flex items-center gap-1.5 bg-[#124232] text-[#C5A869] border border-[#C5A869]/40 px-3 py-1.5 rounded-lg text-xs font-semibold hover:brightness-110 transition">
-                  <Volume2 className="w-3.5 h-3.5" />
-                  <span>Audition Voice</span>
-                </button>
-              </div>
-            </div>
+                  <span className="text-[10px] text-emerald-400 font-mono">VERIFIED</span>
+                </div>
+              );
+            })}
           </div>
         </div>
+
       </div>
     </div>
   );

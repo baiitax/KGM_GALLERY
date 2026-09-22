@@ -1,48 +1,90 @@
-export interface PromptEngineInput {
-  style: 'kgm_luxury' | 'cinematic_moody' | 'bright_editorial' | 'dusk_prestige';
-  category: string;
-  motionPreset: {
-    name: string;
-    key: string;
-    default_lens?: string;
-    speed?: string;
-    motion_intensity?: number;
-    environmental_motion?: string;
-    prompt_template?: string;
-    negative_prompt?: string;
-  };
+import { CinematicStyle, MotionPreset, RoomCategory } from '../types';
+
+export interface PromptBuildParams {
+  style: CinematicStyle;
+  category: RoomCategory;
+  motionPreset: MotionPreset;
   propertyContext?: {
     name?: string;
+    type?: string;
     location?: string;
-    architectural_style?: string;
   };
+  customInstructions?: string;
 }
 
 export class CinematicPromptEngine {
-  static buildPrompt(input: PromptEngineInput): { prompt: string; negativePrompt: string } {
-    const lens = input.motionPreset.default_lens || '28mm';
-    const speed = input.motionPreset.speed || 'slow';
-    const motionMotion = input.motionPreset.prompt_template || 'Slow controlled cinematic camera movement.';
-    const propName = input.propertyContext?.name || 'luxury architectural estate';
+  public static buildPrompt(params: PromptBuildParams): { prompt: string; negativePrompt: string } {
+    const { style, category, motionPreset, propertyContext, customInstructions } = params;
 
-    const positivePrompt = [
-      `Ultra-high-end 8K architectural cinematography of ${propName}.`,
-      `${motionMotion}`,
-      `Captured on ARRI Alexa Mini LF with Zeiss Supreme ${lens} cinema prime lens at T1.5.`,
-      `Motion characteristics: ${speed} cinematic cadence, smooth hydraulic gimbal stabilization, zero camera shake, fluid parallax depth.`,
-      `Lighting & Color: Master-graded in ACES color space, natural photorealistic illumination, accurate reflections, authentic high dynamic range.`,
-      `Environmental details: ${input.motionPreset.environmental_motion || 'gentle atmospheric breeze and soft natural lighting'}.`,
-      `STRICT ARCHITECTURAL DIRECTIVE: Preserve 100% of the exact structural architecture, spatial layout, furniture placement, materials, wall positions, and geometry visible in the source reference image. No structural morphing, no hallucinations, completely photorealistic real estate rendering.`,
-    ].join(' ');
-
-    const negativePrompt = [
-      input.motionPreset.negative_prompt || '',
-      'morphing architecture, warped walls, unstable geometry, moving furniture, distorted perspective, blurry textures, AI artifacts, jittery panning, erratic frame jumps, cartoonish rendering, oversaturated neon, extra objects, floating debris, noisy grain, low resolution, cheap ken burns zoom, camera shake.',
-    ].filter(Boolean).join(', ');
-
-    return {
-      prompt: positivePrompt,
-      negativePrompt,
+    // 1. Style Prefix
+    const stylePhrases: Record<CinematicStyle, string> = {
+      kgm_luxury: 'Premium luxury real-estate cinematography for Kurra Greenfield Merchants Limited (KGM). Masterwork high-end production value.',
+      kgm_modern: 'Ultra-contemporary architectural cinematography. Clean geometric lines, luminous natural lighting, minimalist luxury aesthetic.',
+      kgm_corporate: 'Prestige institutional real-estate cinematography. Sophisticated, stately, balanced, and authoritative.',
+      kgm_investment: 'High-value property investment showcase cinematography. Crisp architectural precision and prime asset presentation.',
+      kgm_social: 'High-engagement luxury property cinematography. Dynamic yet ultra-smooth and stately, optimized for viral luxury discovery.',
     };
+
+    const stylePrefix = stylePhrases[style] || stylePhrases.kgm_luxury;
+
+    // 2. Exact Image Preservation Clause
+    const preservationClause = `CRITICAL ARCHITECTURAL PRESERVATION: Preserve 100% of the exact structural architecture, room geometry, furniture placement, cabinetry, materials, marble veining, colors, windows, doors, lighting fixtures, and decorative art present in the reference image.`;
+
+    // 3. Motion & Lens Direction
+    const motionClause = `CAMERA CHOREOGRAPHY: ${motionPreset.prompt_template} Using a calibrated ${motionPreset.default_lens} cinema prime lens with ultra-smooth optical stabilization. Physically plausible camera movement at a stately, controlled ${motionPreset.speed.replace('_', ' ')} speed.`;
+
+    // 4. Parallax & Environmental Depth
+    const depthClause = `DEPTH & PARALLAX: Natural foreground-to-background spatial separation with gentle three-dimensional parallax drift. Stable straight vertical and horizontal architectural lines.`;
+
+    // 5. Environmental Lighting
+    const lightingClause = `ATMOSPHERE & LIGHTING: Shifting soft daylight reflections across polished surfaces. Gentle, realistic ambient environmental airflow (${motionPreset.environmental_motion.replace(/_/g, ' ')}).`;
+
+    // 6. Custom Instructions if any
+    const customClause = customInstructions ? `DIRECTOR NOTE: ${customInstructions}` : '';
+
+    const prompt = [
+      stylePrefix,
+      propertyContext?.name ? `Property: ${propertyContext.name}.` : '',
+      preservationClause,
+      motionClause,
+      depthClause,
+      lightingClause,
+      customClause,
+      `OUTPUT: Photorealistic 4K cinema master. No cartoonish animation. Flawless luxury property film.`
+    ].filter(Boolean).join(' ');
+
+    // 7. Negative Prompt enforcing strict preservation
+    const defaultNegative = [
+      'morphing architecture',
+      'warping walls',
+      'shifting window positions',
+      'distorted columns',
+      'melting doors',
+      'sliding furniture',
+      'changing cushion patterns',
+      'hallway warping',
+      'wobbly camera',
+      'jerky camera motion',
+      'fast zooms',
+      'fish-eye distortion',
+      'flicker',
+      'noise',
+      'grain',
+      'duplicate items',
+      'newly added objects',
+      'structural alterations',
+      'blurry textures',
+      'artificial CGI look',
+      'water glitches',
+      'unnatural sky motion',
+      'over-saturation',
+      'deformed ceiling',
+    ].join(', ');
+
+    const negativePrompt = motionPreset.negative_prompt
+      ? `${defaultNegative}, ${motionPreset.negative_prompt}`
+      : defaultNegative;
+
+    return { prompt, negativePrompt };
   }
 }
